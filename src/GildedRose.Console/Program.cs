@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+﻿    using System.Collections.Generic;
 
 namespace GildedRose.Console;
 
@@ -36,78 +36,55 @@ public class Program
 
     public void UpdateQuality()
     {
-        for (var i = 0; i < Items.Count; i++)
+        foreach (var item in Items)
         {
-            if (Items[i].Name != "Aged Brie" && Items[i].Name != "Backstage passes to a TAFKAL80ETC concert")
+            // Sulfuras is legendary: neither its quality nor its sell-by date changes.
+            if (item.Name == "Sulfuras, Hand of Ragnaros")
             {
-                if (Items[i].Quality > 0)
-                {
-                    if (Items[i].Name != "Sulfuras, Hand of Ragnaros")
-                    {
-                        Items[i].Quality = Items[i].Quality - 1;
-                    }
-                }
+                continue;
+            }
+
+            if (item.Name == "Backstage passes to a TAFKAL80ETC concert")
+            {
+                UpdateBackstagePass(item);
+            }
+            else if (item.Name == "Aged Brie")
+            {
+                UpdateQualityWithinBounds(item, item.SellIn <= 0 ? 2 : 1);
             }
             else
             {
-                if (Items[i].Quality < 50)
+                // Conjured items degrade twice as fast, and every ordinary degradation doubles after the due date.
+                var degradation = item.Name.StartsWith("Conjured ", StringComparison.Ordinal) ? 2 : 1;
+                if (item.SellIn <= 0)
                 {
-                    Items[i].Quality = Items[i].Quality + 1;
-
-                    if (Items[i].Name == "Backstage passes to a TAFKAL80ETC concert")
-                    {
-                        if (Items[i].SellIn < 11)
-                        {
-                            if (Items[i].Quality < 50)
-                            {
-                                Items[i].Quality = Items[i].Quality + 1;
-                            }
-                        }
-
-                        if (Items[i].SellIn < 6)
-                        {
-                            if (Items[i].Quality < 50)
-                            {
-                                Items[i].Quality = Items[i].Quality + 1;
-                            }
-                        }
-                    }
+                    degradation *= 2;
                 }
+
+                UpdateQualityWithinBounds(item, -degradation);
             }
 
-            if (Items[i].Name != "Sulfuras, Hand of Ragnaros")
-            {
-                Items[i].SellIn = Items[i].SellIn - 1;
-            }
-
-            if (Items[i].SellIn < 0)
-            {
-                if (Items[i].Name != "Aged Brie")
-                {
-                    if (Items[i].Name != "Backstage passes to a TAFKAL80ETC concert")
-                    {
-                        if (Items[i].Quality > 0)
-                        {
-                            if (Items[i].Name != "Sulfuras, Hand of Ragnaros")
-                            {
-                                Items[i].Quality = Items[i].Quality - 1;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Items[i].Quality = Items[i].Quality - Items[i].Quality;
-                    }
-                }
-                else
-                {
-                    if (Items[i].Quality < 50)
-                    {
-                        Items[i].Quality = Items[i].Quality + 1;
-                    }
-                }
-            }
+            item.SellIn--;
         }
+    }
+
+    private static void UpdateBackstagePass(Item item)
+    {
+        // A pass has no value after the concert; otherwise its increase depends on time remaining.
+        if (item.SellIn <= 0)
+        {
+            item.Quality = 0;
+            return;
+        }
+
+        var increase = item.SellIn < 6 ? 3 : item.SellIn < 11 ? 2 : 1;
+        UpdateQualityWithinBounds(item, increase);
+    }
+
+    private static void UpdateQualityWithinBounds(Item item, int change)
+    {
+        // Quality is bounded for every item except Sulfuras, which is returned before this helper is called.
+        item.Quality = Math.Clamp(item.Quality + change, 0, 50);
     }
 }
 
